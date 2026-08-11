@@ -18,11 +18,13 @@ func TestSearchDocumentsUsesAuthenticatedOfficialMCPTransport(t *testing.T) {
 	token := "sb_mcp_v1_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 	digest := sha256.Sum256([]byte(token))
 	documentID := uuid.New()
+	versionID := uuid.New()
 	searcher := &fixtureSearcher{hits: []searchruntime.Hit{{
 		Rank:            1,
 		Score:           0.91,
 		DocumentID:      documentID.String(),
 		DocumentName:    "보안 정책",
+		VersionID:       versionID.String(),
 		DocumentVersion: 2,
 		PageNumber:      3,
 		Snippet:         "비밀번호는 90일마다 변경합니다.",
@@ -62,7 +64,8 @@ func TestSearchDocumentsUsesAuthenticatedOfficialMCPTransport(t *testing.T) {
 		t.Fatalf("results = %+v; body=%s", payload.Result.StructuredContent.Results, response.Body.String())
 	}
 	got := payload.Result.StructuredContent.Results[0]
-	if got.DocumentVersion != 2 || got.PageNumber != 3 || got.SourceURL != searcher.hits[0].SourceURL {
+	if got.VersionID != versionID.String() || got.DocumentVersion != 2 || got.PageNumber != 3 ||
+		got.SourceURL != searcher.hits[0].SourceURL {
 		t.Fatalf("result = %+v", got)
 	}
 	if searcher.query != "비밀번호 정책" || searcher.limit != 5 {

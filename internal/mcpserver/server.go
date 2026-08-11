@@ -45,6 +45,7 @@ type searchHit struct {
 	Score           float64 `json:"score"`
 	DocumentID      string  `json:"document_id"`
 	DocumentName    string  `json:"document_name"`
+	VersionID       string  `json:"version_id"`
 	DocumentVersion int     `json:"document_version"`
 	PageNumber      int     `json:"page_number"`
 	Snippet         string  `json:"snippet"`
@@ -94,6 +95,7 @@ func New(config Config, searcher searcher) (http.Handler, error) {
 				Score:           hit.Score,
 				DocumentID:      hit.DocumentID,
 				DocumentName:    hit.DocumentName,
+				VersionID:       hit.VersionID,
 				DocumentVersion: hit.DocumentVersion,
 				PageNumber:      hit.PageNumber,
 				Snippet:         hit.Snippet,
