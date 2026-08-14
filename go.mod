@@ -1,6 +1,6 @@
 module github.com/Merge42-SyncBase/syncbase-mcp
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/Merge42-SyncBase/syncbase-was v0.0.0
