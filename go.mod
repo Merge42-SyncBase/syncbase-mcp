@@ -3,7 +3,7 @@ module github.com/Merge42-SyncBase/syncbase-mcp
 go 1.26.6
 
 require (
-	github.com/Merge42-SyncBase/syncbase-was v0.0.0-20260815080244-e2c07bae48ae
+	github.com/Merge42-SyncBase/syncbase-was v0.0.0-20260815083017-19c3fd05a5b7
 	github.com/google/uuid v1.6.0
 	github.com/modelcontextprotocol/go-sdk v1.7.0
 )
