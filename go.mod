@@ -3,13 +3,13 @@ module github.com/Merge42-SyncBase/syncbase-mcp
 go 1.26.6
 
 require (
-	github.com/Merge42-SyncBase/syncbase-was v0.0.0-20260816032622-a1341f477418
+	github.com/Merge42-SyncBase/syncbase-was v0.0.0-20260816134057-40ff29103c5b
 	github.com/google/uuid v1.6.0
 	github.com/modelcontextprotocol/go-sdk v1.7.0
 )
 
 require (
-	github.com/Merge42-SyncBase/syncbase-embedding v0.0.0-20260815171426-2dff15641022 // indirect
+	github.com/Merge42-SyncBase/syncbase-embedding v0.0.0-20260816133742-bf91ee529a7b // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/google/jsonschema-go v0.4.3 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect

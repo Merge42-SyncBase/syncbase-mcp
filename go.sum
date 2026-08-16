@@ -1,7 +1,7 @@
-github.com/Merge42-SyncBase/syncbase-embedding v0.0.0-20260815171426-2dff15641022 h1:vhHONNNob+8qEziZW9Gjn6s8GgmcHYTvWa2SlBMRQ+M=
-github.com/Merge42-SyncBase/syncbase-embedding v0.0.0-20260815171426-2dff15641022/go.mod h1:t1aVdRyCxNYH9y57QxZFonFLwcw9t5q6+3Bsc7Z9ZIc=
-github.com/Merge42-SyncBase/syncbase-was v0.0.0-20260816032622-a1341f477418 h1:Ls5r3DsXnnFhnMPwT0TKeUGFFwzQ6qBTFmoIsAvz61U=
-github.com/Merge42-SyncBase/syncbase-was v0.0.0-20260816032622-a1341f477418/go.mod h1:mPTl/fjfdA1eiVA1Pqq365q/7phIpnfBWMzNkjbQ/uU=
+github.com/Merge42-SyncBase/syncbase-embedding v0.0.0-20260816133742-bf91ee529a7b h1:Zz6pLQj8oWYnsODzZbVGHX6WSyZks8DxG+wQf0BdhVg=
+github.com/Merge42-SyncBase/syncbase-embedding v0.0.0-20260816133742-bf91ee529a7b/go.mod h1:t1aVdRyCxNYH9y57QxZFonFLwcw9t5q6+3Bsc7Z9ZIc=
+github.com/Merge42-SyncBase/syncbase-was v0.0.0-20260816134057-40ff29103c5b h1:IkoDF9vkMTPlJCeBBDnstM0QAhSXHMjvkLdTPEE1tQc=
+github.com/Merge42-SyncBase/syncbase-was v0.0.0-20260816134057-40ff29103c5b/go.mod h1:B9gYEJC4G/1Tq0sU3YQfvdUcqiS+wDweGZUPKwTUkMo=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
