@@ -20,7 +20,7 @@ func TestSearchDocumentsUsesAuthenticatedOfficialMCPTransport(t *testing.T) {
 	digest := sha256.Sum256([]byte(token))
 	documentID := uuid.New()
 	versionID := uuid.New()
-	searcher := &fixtureSearcher{hits: []searchruntime.Hit{{
+	searcher := &groundedFixtureSearcher{status: groundingSupported, hits: []searchruntime.Hit{{
 		Rank:            1,
 		Score:           0.91,
 		DocumentID:      documentID.String(),
@@ -94,6 +94,53 @@ func TestSearchDocumentsUsesAuthenticatedOfficialMCPTransport(t *testing.T) {
 	handler.ServeHTTP(forbidden, badOrigin)
 	if forbidden.Code != http.StatusForbidden {
 		t.Fatalf("bad origin status=%d body=%s", forbidden.Code, forbidden.Body.String())
+	}
+}
+
+func TestSearchDocumentsFailsClosedForLegacyHitsWithoutGroundingMetadata(t *testing.T) {
+	t.Parallel()
+
+	token := "sb_mcp_v1_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+	digest := sha256.Sum256([]byte(token))
+	searcher := &fixtureSearcher{hits: []searchruntime.Hit{{Rank: 1, Score: 0.91, Snippet: "unverified legacy hit"}}}
+	handler, err := New(Config{
+		TokenSHA256:  hex.EncodeToString(digest[:]),
+		AllowedHosts: []string{"example.test"},
+	}, searcher)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	request := httptest.NewRequest(http.MethodPost, "http://example.test/mcp", bytes.NewReader([]byte(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"search_documents","arguments":{"query":"query","limit":5}}}`,
+	)))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Accept", "application/json, text/event-stream")
+	request.Header.Set("Authorization", "Bearer "+token)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
+	}
+	var payload struct {
+		Result struct {
+			IsError           bool `json:"isError"`
+			StructuredContent struct {
+				GroundingStatus string      `json:"grounding_status"`
+				GroundingReason string      `json:"grounding_reason"`
+				Results         []searchHit `json:"results"`
+			} `json:"structuredContent"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode response: %v; body=%s", err, response.Body.String())
+	}
+	if payload.Result.IsError || payload.Result.StructuredContent.GroundingStatus != groundingInsufficientEvidence ||
+		payload.Result.StructuredContent.GroundingReason != groundingSourceUnavailable ||
+		payload.Result.StructuredContent.Results == nil || len(payload.Result.StructuredContent.Results) != 0 {
+		t.Fatalf("grounding output = %+v; body=%s", payload.Result, response.Body.String())
+	}
+	if searcher.query != "query" || searcher.limit != 5 {
+		t.Fatalf("legacy search call: query=%q limit=%d", searcher.query, searcher.limit)
 	}
 }
 
@@ -212,6 +259,9 @@ type groundedFixtureSearcher struct {
 	status  string
 	reason  string
 	failure error
+	hits    []searchruntime.Hit
+	query   string
+	limit   int
 }
 
 func (s *groundedFixtureSearcher) Documents(context.Context, string, int) ([]searchruntime.Hit, error) {
@@ -220,8 +270,10 @@ func (s *groundedFixtureSearcher) Documents(context.Context, string, int) ([]sea
 
 func (s *groundedFixtureSearcher) GroundedDocuments(
 	_ context.Context,
-	_ string,
-	_ int,
+	query string,
+	limit int,
 ) ([]searchruntime.Hit, string, string, error) {
-	return nil, s.status, s.reason, s.failure
+	s.query = query
+	s.limit = limit
+	return s.hits, s.status, s.reason, s.failure
 }

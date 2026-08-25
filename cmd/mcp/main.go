@@ -25,19 +25,7 @@ func main() {
 }
 
 func run(ctx context.Context) error {
-	databaseURL, err := config.Required("SYNCBASE_DATABASE_URL")
-	if err != nil {
-		return err
-	}
-	modelPath, err := config.Required("SYNCBASE_MODEL_PATH")
-	if err != nil {
-		return err
-	}
-	tokenizerPath, err := config.Required("SYNCBASE_TOKENIZER_PATH")
-	if err != nil {
-		return err
-	}
-	runtimeLibrary, err := config.Required("SYNCBASE_ORT_LIBRARY_PATH")
+	runtimeConfig, err := loadSearchRuntimeConfig()
 	if err != nil {
 		return err
 	}
@@ -45,27 +33,7 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	publicBaseURL, err := config.Required("SYNCBASE_PUBLIC_BASE_URL")
-	if err != nil {
-		return err
-	}
-	originalRoot, err := config.Required("SYNCBASE_ORIGINAL_ROOT")
-	if err != nil {
-		return err
-	}
-	minimumScore, err := config.Float64("SYNCBASE_MINIMUM_SCORE", 0.62)
-	if err != nil {
-		return err
-	}
-	searchRuntime, err := searchruntime.Open(ctx, searchruntime.Config{
-		DatabaseURL:        databaseURL,
-		ModelPath:          modelPath,
-		TokenizerPath:      tokenizerPath,
-		RuntimeLibraryPath: runtimeLibrary,
-		PublicBaseURL:      publicBaseURL,
-		OriginalRoot:       originalRoot,
-		MinimumScore:       minimumScore,
-	})
+	searchRuntime, err := searchruntime.Open(ctx, runtimeConfig)
 	if err != nil {
 		return err
 	}
@@ -117,6 +85,46 @@ func run(ctx context.Context) error {
 	}
 	<-shutdownDone
 	return ctx.Err()
+}
+
+func loadSearchRuntimeConfig() (searchruntime.Config, error) {
+	databaseURL, err := config.Required("SYNCBASE_DATABASE_URL")
+	if err != nil {
+		return searchruntime.Config{}, err
+	}
+	modelPath, err := config.Required("SYNCBASE_MODEL_PATH")
+	if err != nil {
+		return searchruntime.Config{}, err
+	}
+	tokenizerPath, err := config.Required("SYNCBASE_TOKENIZER_PATH")
+	if err != nil {
+		return searchruntime.Config{}, err
+	}
+	runtimeLibrary, err := config.Required("SYNCBASE_ORT_LIBRARY_PATH")
+	if err != nil {
+		return searchruntime.Config{}, err
+	}
+	publicBaseURL, err := config.Required("SYNCBASE_PUBLIC_BASE_URL")
+	if err != nil {
+		return searchruntime.Config{}, err
+	}
+	originalRoot, err := config.Required("SYNCBASE_ORIGINAL_ROOT")
+	if err != nil {
+		return searchruntime.Config{}, err
+	}
+	minimumScore, err := config.Float64("SYNCBASE_MINIMUM_SCORE", 0.62)
+	if err != nil {
+		return searchruntime.Config{}, err
+	}
+	return searchruntime.Config{
+		DatabaseURL:        databaseURL,
+		ModelPath:          modelPath,
+		TokenizerPath:      tokenizerPath,
+		RuntimeLibraryPath: runtimeLibrary,
+		PublicBaseURL:      publicBaseURL,
+		OriginalRoot:       originalRoot,
+		MinimumScore:       minimumScore,
+	}, nil
 }
 
 func writeReadiness(response http.ResponseWriter, status int, value string) {
