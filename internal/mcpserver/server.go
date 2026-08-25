@@ -38,9 +38,8 @@ type searcher interface {
 	Documents(context.Context, string, int) ([]searchruntime.Hit, error)
 }
 
-// groundedSearcher is additive so a rolling deployment can still use an older
-// runtime. The current WAS runtime implements it and preserves the legacy
-// Documents method for existing consumers.
+// groundedSearcher is additive so a rolling deployment can detect an older
+// runtime. Legacy hits remain callable but are not exposed as grounded evidence.
 type groundedSearcher interface {
 	GroundedDocuments(context.Context, string, int) ([]searchruntime.Hit, string, string, error)
 }
@@ -125,7 +124,9 @@ func groundedSearch(ctx context.Context, source searcher, query string, limit in
 	} else {
 		hits, err = source.Documents(ctx, query, limit)
 		if len(hits) > 0 {
-			status = groundingSupported
+			hits = nil
+			status = groundingInsufficientEvidence
+			reason = groundingSourceUnavailable
 		} else {
 			status = groundingInsufficientEvidence
 			reason = groundingNoHitsAbovePolicy
