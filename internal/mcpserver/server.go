@@ -18,7 +18,14 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-const tokenPrefix = "sb_mcp_v1_"
+const (
+	tokenPrefix                         = "sb_mcp_v1_"
+	groundingSupported                  = "SUPPORTED"
+	groundingInsufficientEvidence       = "INSUFFICIENT_EVIDENCE"
+	groundingNoHitsAbovePolicy          = "NO_HITS_ABOVE_POLICY"
+	groundingOnlyInactiveVersionMatched = "ONLY_INACTIVE_VERSION_MATCHED"
+	groundingSourceUnavailable          = "SOURCE_UNAVAILABLE"
+)
 
 // Config defines MCP transport authentication and origin boundaries.
 type Config struct {
@@ -31,13 +38,22 @@ type searcher interface {
 	Documents(context.Context, string, int) ([]searchruntime.Hit, error)
 }
 
+// groundedSearcher is additive so a rolling deployment can still use an older
+// runtime. The current WAS runtime implements it and preserves the legacy
+// Documents method for existing consumers.
+type groundedSearcher interface {
+	GroundedDocuments(context.Context, string, int) ([]searchruntime.Hit, string, string, error)
+}
+
 type searchInput struct {
 	Query string `json:"query" jsonschema:"semantic search query"`
 	Limit int    `json:"limit,omitempty" jsonschema:"maximum number of results"`
 }
 
 type searchOutput struct {
-	Results []searchHit `json:"results"`
+	GroundingStatus string      `json:"grounding_status"`
+	GroundingReason *string     `json:"grounding_reason"`
+	Results         []searchHit `json:"results"`
 }
 
 type searchHit struct {
@@ -84,11 +100,53 @@ func New(config Config, searcher searcher) (http.Handler, error) {
 			"additionalProperties": false,
 		},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, input searchInput) (*mcp.CallToolResult, searchOutput, error) {
-		hits, err := searcher.Documents(ctx, input.Query, input.Limit)
+		output, err := groundedSearch(ctx, searcher, input.Query, input.Limit)
 		if err != nil {
-			return nil, searchOutput{}, safeToolError(err)
+			return nil, searchOutput{}, err
 		}
-		output := searchOutput{Results: make([]searchHit, len(hits))}
+		return nil, output, nil
+	})
+	transport := mcp.NewStreamableHTTPHandler(
+		func(*http.Request) *mcp.Server { return server },
+		&mcp.StreamableHTTPOptions{Stateless: true, JSONResponse: true},
+	)
+	return securityMiddleware(expectedDigest, hosts, origins, transport), nil
+}
+
+func groundedSearch(ctx context.Context, source searcher, query string, limit int) (searchOutput, error) {
+	var (
+		hits   []searchruntime.Hit
+		status string
+		reason string
+		err    error
+	)
+	if grounded, ok := source.(groundedSearcher); ok {
+		hits, status, reason, err = grounded.GroundedDocuments(ctx, query, limit)
+	} else {
+		hits, err = source.Documents(ctx, query, limit)
+		if len(hits) > 0 {
+			status = groundingSupported
+		} else {
+			status = groundingInsufficientEvidence
+			reason = groundingNoHitsAbovePolicy
+		}
+	}
+	if err != nil {
+		if searchruntime.IsRetryable(err) {
+			return insufficientOutput(groundingSourceUnavailable), nil
+		}
+		return searchOutput{}, safeToolError(err)
+	}
+
+	switch status {
+	case groundingSupported:
+		if len(hits) == 0 || reason != "" {
+			return searchOutput{}, errors.New("INTERNAL")
+		}
+		output := searchOutput{
+			GroundingStatus: groundingSupported,
+			Results:         make([]searchHit, len(hits)),
+		}
 		for index, hit := range hits {
 			output.Results[index] = searchHit{
 				Rank:            hit.Rank,
@@ -102,13 +160,32 @@ func New(config Config, searcher searcher) (http.Handler, error) {
 				SourceURL:       hit.SourceURL,
 			}
 		}
-		return nil, output, nil
-	})
-	transport := mcp.NewStreamableHTTPHandler(
-		func(*http.Request) *mcp.Server { return server },
-		&mcp.StreamableHTTPOptions{Stateless: true, JSONResponse: true},
-	)
-	return securityMiddleware(expectedDigest, hosts, origins, transport), nil
+		return output, nil
+	case groundingInsufficientEvidence:
+		if len(hits) != 0 || !validGroundingReason(reason) {
+			return searchOutput{}, errors.New("INTERNAL")
+		}
+		return insufficientOutput(reason), nil
+	default:
+		return searchOutput{}, errors.New("INTERNAL")
+	}
+}
+
+func insufficientOutput(reason string) searchOutput {
+	return searchOutput{
+		GroundingStatus: groundingInsufficientEvidence,
+		GroundingReason: &reason,
+		Results:         make([]searchHit, 0),
+	}
+}
+
+func validGroundingReason(reason string) bool {
+	switch reason {
+	case groundingNoHitsAbovePolicy, groundingOnlyInactiveVersionMatched, groundingSourceUnavailable:
+		return true
+	default:
+		return false
+	}
 }
 
 func securityMiddleware(

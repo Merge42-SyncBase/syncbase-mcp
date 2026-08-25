@@ -7,14 +7,10 @@ ARG BINARY=syncbase
 WORKDIR /src
 
 COPY go.mod go.sum ./
-# syncbase-was and syncbase-embedding are private GitHub modules; the token is
-# only mounted for this instruction and never written to a persisted layer.
-RUN --mount=type=secret,id=github_token,required=true \
-    --mount=type=cache,target=/go/pkg/mod \
-    git config --global url."https://x-access-token:$(cat /run/secrets/github_token)@github.com/".insteadOf "https://github.com/" \
-    && go env -w GOPRIVATE=github.com/Merge42-SyncBase/* \
-    && go mod download all \
-    && git config --global --unset-all url."https://x-access-token:$(cat /run/secrets/github_token)@github.com/".insteadOf
+# Round-1 first-party modules are public and checksum-verifiable. Anonymous
+# builds must not require a publication credential.
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download all
 
 COPY . .
 RUN --mount=type=cache,target=/go/pkg/mod \
@@ -31,6 +27,7 @@ RUN apt-get update \
     && mkdir -p /app \
     && chown -R syncbase:syncbase /app
 COPY --from=build "/out/${BINARY}" /app/syncbase
+COPY LICENSE THIRD_PARTY_NOTICES.md /usr/share/licenses/syncbase-mcp/
 USER 10001:10001
 WORKDIR /app
 ENTRYPOINT ["/app/syncbase"]

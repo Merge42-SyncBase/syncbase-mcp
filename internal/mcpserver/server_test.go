@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -53,7 +54,9 @@ func TestSearchDocumentsUsesAuthenticatedOfficialMCPTransport(t *testing.T) {
 	var payload struct {
 		Result struct {
 			StructuredContent struct {
-				Results []searchHit `json:"results"`
+				GroundingStatus string      `json:"grounding_status"`
+				GroundingReason *string     `json:"grounding_reason"`
+				Results         []searchHit `json:"results"`
 			} `json:"structuredContent"`
 		} `json:"result"`
 	}
@@ -62,6 +65,10 @@ func TestSearchDocumentsUsesAuthenticatedOfficialMCPTransport(t *testing.T) {
 	}
 	if len(payload.Result.StructuredContent.Results) != 1 {
 		t.Fatalf("results = %+v; body=%s", payload.Result.StructuredContent.Results, response.Body.String())
+	}
+	if payload.Result.StructuredContent.GroundingStatus != "SUPPORTED" ||
+		payload.Result.StructuredContent.GroundingReason != nil {
+		t.Fatalf("grounding = %+v; body=%s", payload.Result.StructuredContent, response.Body.String())
 	}
 	got := payload.Result.StructuredContent.Results[0]
 	if got.VersionID != versionID.String() || got.DocumentVersion != 2 || got.PageNumber != 3 ||
@@ -90,7 +97,62 @@ func TestSearchDocumentsUsesAuthenticatedOfficialMCPTransport(t *testing.T) {
 	}
 }
 
-func TestSearchDocumentsReturnsRetryableDependencyFailure(t *testing.T) {
+func TestSearchDocumentsReturnsExplicitEmptyEvidenceForEverySafetyFailure(t *testing.T) {
+	tests := []struct {
+		name   string
+		status string
+		reason string
+		err    error
+	}{
+		{name: "no hits", status: "INSUFFICIENT_EVIDENCE", reason: "NO_HITS_ABOVE_POLICY"},
+		{name: "inactive only", status: "INSUFFICIENT_EVIDENCE", reason: "ONLY_INACTIVE_VERSION_MATCHED"},
+		{name: "source unavailable", err: searchruntime.ErrTemporarilyUnavailable, reason: "SOURCE_UNAVAILABLE"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			token := "sb_mcp_v1_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+			digest := sha256.Sum256([]byte(token))
+			searcher := &groundedFixtureSearcher{status: test.status, reason: test.reason, failure: test.err}
+			handler, err := New(Config{
+				TokenSHA256: hex.EncodeToString(digest[:]), AllowedHosts: []string{"example.test"},
+			}, searcher)
+			if err != nil {
+				t.Fatalf("New: %v", err)
+			}
+			request := httptest.NewRequest(http.MethodPost, "http://example.test/mcp", bytes.NewReader([]byte(
+				`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"search_documents","arguments":{"query":"query","limit":5}}}`,
+			)))
+			request.Header.Set("Content-Type", "application/json")
+			request.Header.Set("Accept", "application/json, text/event-stream")
+			request.Header.Set("Authorization", "Bearer "+token)
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if response.Code != http.StatusOK {
+				t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
+			}
+			var payload struct {
+				Result struct {
+					IsError           bool `json:"isError"`
+					StructuredContent struct {
+						GroundingStatus string      `json:"grounding_status"`
+						GroundingReason string      `json:"grounding_reason"`
+						Results         []searchHit `json:"results"`
+					} `json:"structuredContent"`
+				} `json:"result"`
+			}
+			if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
+				t.Fatalf("decode response: %v; body=%s", err, response.Body.String())
+			}
+			if payload.Result.IsError || payload.Result.StructuredContent.GroundingStatus != "INSUFFICIENT_EVIDENCE" ||
+				payload.Result.StructuredContent.GroundingReason != test.reason ||
+				payload.Result.StructuredContent.Results == nil || len(payload.Result.StructuredContent.Results) != 0 {
+				t.Fatalf("grounding response = %+v; body=%s", payload.Result, response.Body.String())
+			}
+		})
+	}
+}
+
+func TestSearchDocumentsTurnsLegacyRetryableDependencyFailureIntoEmptyEvidence(t *testing.T) {
 	t.Parallel()
 
 	token := "sb_mcp_v1_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
@@ -115,18 +177,21 @@ func TestSearchDocumentsReturnsRetryableDependencyFailure(t *testing.T) {
 	}
 	var payload struct {
 		Result struct {
-			IsError bool `json:"isError"`
-			Content []struct {
-				Text string `json:"text"`
-			} `json:"content"`
+			IsError           bool `json:"isError"`
+			StructuredContent struct {
+				GroundingStatus string      `json:"grounding_status"`
+				GroundingReason string      `json:"grounding_reason"`
+				Results         []searchHit `json:"results"`
+			} `json:"structuredContent"`
 		} `json:"result"`
 	}
 	if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
 		t.Fatalf("decode response: %v; body=%s", err, response.Body.String())
 	}
-	if !payload.Result.IsError || len(payload.Result.Content) != 1 ||
-		payload.Result.Content[0].Text != "TEMPORARILY_UNAVAILABLE" {
-		t.Fatalf("tool error = %+v; body=%s", payload.Result, response.Body.String())
+	if payload.Result.IsError || payload.Result.StructuredContent.GroundingStatus != groundingInsufficientEvidence ||
+		payload.Result.StructuredContent.GroundingReason != groundingSourceUnavailable ||
+		payload.Result.StructuredContent.Results == nil || len(payload.Result.StructuredContent.Results) != 0 {
+		t.Fatalf("grounding output = %+v; body=%s", payload.Result, response.Body.String())
 	}
 }
 
@@ -141,4 +206,22 @@ func (s *fixtureSearcher) Documents(_ context.Context, query string, limit int) 
 	s.query = query
 	s.limit = limit
 	return s.hits, s.failure
+}
+
+type groundedFixtureSearcher struct {
+	status  string
+	reason  string
+	failure error
+}
+
+func (s *groundedFixtureSearcher) Documents(context.Context, string, int) ([]searchruntime.Hit, error) {
+	return nil, errors.New("legacy search path must not be used")
+}
+
+func (s *groundedFixtureSearcher) GroundedDocuments(
+	_ context.Context,
+	_ string,
+	_ int,
+) ([]searchruntime.Hit, string, string, error) {
+	return nil, s.status, s.reason, s.failure
 }
