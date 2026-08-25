@@ -49,6 +49,10 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	originalRoot, err := config.Required("SYNCBASE_ORIGINAL_ROOT")
+	if err != nil {
+		return err
+	}
 	minimumScore, err := config.Float64("SYNCBASE_MINIMUM_SCORE", 0.62)
 	if err != nil {
 		return err
@@ -59,6 +63,7 @@ func run(ctx context.Context) error {
 		TokenizerPath:      tokenizerPath,
 		RuntimeLibraryPath: runtimeLibrary,
 		PublicBaseURL:      publicBaseURL,
+		OriginalRoot:       originalRoot,
 		MinimumScore:       minimumScore,
 	})
 	if err != nil {
