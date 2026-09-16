@@ -1,7 +1,5 @@
 github.com/Merge42-SyncBase/syncbase-embedding v0.0.0-20260816133742-bf91ee529a7b h1:Zz6pLQj8oWYnsODzZbVGHX6WSyZks8DxG+wQf0BdhVg=
 github.com/Merge42-SyncBase/syncbase-embedding v0.0.0-20260816133742-bf91ee529a7b/go.mod h1:t1aVdRyCxNYH9y57QxZFonFLwcw9t5q6+3Bsc7Z9ZIc=
-github.com/Merge42-SyncBase/syncbase-was v0.0.0-20260824235259-96b280759f8b h1:eC/uwmOmfjabP+t7lnYbh0G89XIfSXxUg+kKjCuF6EE=
-github.com/Merge42-SyncBase/syncbase-was v0.0.0-20260824235259-96b280759f8b/go.mod h1:B9gYEJC4G/1Tq0sU3YQfvdUcqiS+wDweGZUPKwTUkMo=
 github.com/Merge42-SyncBase/syncbase-was v0.0.0-20260825005907-130f5c858edc h1:1XaNhss9mYvgO3IY27nE59SCuyeOSnGgH8PoAQm8bSo=
 github.com/Merge42-SyncBase/syncbase-was v0.0.0-20260825005907-130f5c858edc/go.mod h1:B9gYEJC4G/1Tq0sU3YQfvdUcqiS+wDweGZUPKwTUkMo=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -27,8 +25,8 @@ github.com/jackc/puddle/v2 v2.2.2 h1:PR8nw+E/1w0GLuRFSmiioY6UooMp6KJv0/61nB7icHo
 github.com/jackc/puddle/v2 v2.2.2/go.mod h1:vriiEXHvEE654aYKXXjOvZM39qJ0q+azkZFrfEOc3H4=
 github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db h1:62I3jR2EmQ4l5rM/4FEfDWcRD+abF5XlKShorW5LRoQ=
 github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db/go.mod h1:l0dey0ia/Uv7NcFFVbCLtqEBQbrT4OCwCSKTEv6enCw=
-github.com/modelcontextprotocol/go-sdk v1.7.0 h1:yqjY2dsbKAC0LSuWZVBMrHgiG8ukXv6NRo0JiALay44=
-github.com/modelcontextprotocol/go-sdk v1.7.0/go.mod h1:dL7u98E/zjJTGzEq+j30jQ8K2k1mb6LeAH4inEcSGts=
+github.com/modelcontextprotocol/go-sdk v1.8.0 h1:KIvahhYqwtbeniWVPs3TcXEA7b8jEtwfBpOTAI+Urx4=
+github.com/modelcontextprotocol/go-sdk v1.8.0/go.mod h1:dL7u98E/zjJTGzEq+j30jQ8K2k1mb6LeAH4inEcSGts=
 github.com/patrickmn/go-cache v2.1.0+incompatible h1:HRMgzkcYKYpi3C8ajMPV8OFXaaRUnok+kx1WdO15EQc=
 github.com/patrickmn/go-cache v2.1.0+incompatible/go.mod h1:3Qf8kWWT7OJRJbdiICTKqZju1ZixQ/KpMGzzAfe6+WQ=
 github.com/pgvector/pgvector-go v0.4.1 h1:Oaj0mC0Ky8KaTweNHHpLwyFlN6a0nUFoo1vgSFTEhPI=
